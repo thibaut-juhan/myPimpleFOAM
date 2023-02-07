@@ -67,13 +67,25 @@ IOdictionary transportProperties
         IOobject::NO_WRITE
     )
 );
-
 Info<< "Reading diffusivity DT\n" << endl;
-
 dimensionedScalar DT ("DT",dimViscosity, transportProperties);
 
-#include "createPhi.H"
+Info<< "Reading geometryProperties (radius of injectors) \n" << endl;
+IOdictionary geometryProperties
+(
+    IOobject
+    (
+    	"geometryProperties",
+	 runTime.constant(),
+	 mesh,
+	 IOobject::MUST_READ_IF_MODIFIED,
+	 IOobject::NO_WRITE   
+    )
+);
+Info<<"Reading R\n" << endl;
+dimensionedScalar R ("R",dimLength,geometryProperties);
 
+#include "createPhi.H"
 label pRefCell = 0;
 scalar pRefValue = 0.0;
 setRefCell(p, pimple.dict(), pRefCell, pRefValue);
