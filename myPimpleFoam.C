@@ -84,10 +84,10 @@ Note
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-bool isConverged(Foam::volScalarField maxDiff)
+bool isConverged(Foam::volScalarField maxDiff,double epsilon)
 {
    bool res=false;
-   if(max(maxDiff).value() < 1e-4)
+   if(max(maxDiff).value() < epsilon)
    {
       res = true;
    }
@@ -126,6 +126,9 @@ int main(int argc, char *argv[])
 
     double convergeCheck = false;
     double dt(1.e-3);
+    int    countTimeStep(0);     // timestep counter
+    int    secCountTimeStep(1); //  second timeStep counter 	
+    volVectorField U0("U0",U);
     Info<< "\nStarting time loop\n" << endl;
 
     while (runTime.run())
@@ -133,7 +136,8 @@ int main(int argc, char *argv[])
         #include "readDyMControls.H"
         #include "CourantNo.H"
         #include "setDeltaT.H"
-
+	
+	countTimeStep++;
         ++runTime;
 
         Info<< "Time = " << runTime.timeName() << nl << endl;
@@ -161,7 +165,6 @@ int main(int argc, char *argv[])
                            // Make the flux relative to the mesh motion
                            fvc::makeRelative(phi, U);
                         }
-
                         if (checkMeshCourantNo)
                         {
                            #include "meshCourantNo.H"
@@ -183,13 +186,26 @@ int main(int argc, char *argv[])
                    turbulence->correct();
                }
            }	
-   	   forAll(U,cellI)
-   	   {
-      		maxDifference[cellI] = mag( 1.5*U[cellI] -2*U.oldTime()[cellI] + 0.5*U.oldTime().oldTime()[cellI] )/runTime.deltaTValue();
-   	   }
-	   convergeCheck = isConverged(maxDifference);
-        }
-
+           // Stored the time every 100 timeStep:
+	   if( double(countTimeStep) %100 == 0) 
+	   {  
+	      forAll(U,cellI) // Loop over cell => compute dC/dt with the backward (schemes) 
+	      {
+      		U0[cellI] = U[cellI];  
+	      }	   
+	   }
+           // Compare U0 with U 150 dt later		
+	   if ( countTimeStep == secCountTimeStep*100 + 150)
+	   {
+	      forAll(U,CellI) // loop over cell
+	      {
+		maxDifference[cellI] = mag ( U[cellI] - U0[cellI] );      
+	      }
+	      convergeCheck = isConverged(maxDifference,1.e-6); // check Convergence	   
+	      secCountTimeStep++;	   
+	   }  		   
+	
+	}    
 	else // steady state condition => find the time when is checked
 	{
 		// change the timestep => dt*100 & maxCourant number
